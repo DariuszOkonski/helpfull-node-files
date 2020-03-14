@@ -1,0 +1,388 @@
+import React from 'react';
+import App from './App';
+import Enzyme, { shallow } from 'enzyme';
+import EnzymeAdapter from 'enzyme-adapter-react-16';
+
+Enzyme.configure({ adapter: new EnzymeAdapter() });
+
+
+/**
+ * Factory function to create a ShallowWrapper for the App component
+ * @function setup
+ * @param {object} props - Component props specific to this setup.
+ * @param {object} state - Initial state for setup
+ * @returns ShallowWrapper
+ */
+const setup = (props = {}, state = null) => {
+  const wrapper = shallow(<App {...props} />);
+  if (state)
+    wrapper.setState(state);
+  return wrapper
+}
+
+/**
+ * Returns ShallowWrapper containing node(s) with the given data-test attribute
+ * @function findByTestAttr
+ * @param {ShallowWrapper} wrapper - Enzyme shallow wrapper to search within.
+ * @param {string} val - Value of data-test attribute for search
+ * @returns {ShallowWrapper}
+ */
+const findByTestAttr = (wrapper, val) => {
+  return wrapper.find(`[data-test="${val}"]`);
+}
+
+test('renders without error', () => {
+  const wrapper = setup();
+  const appComponent = findByTestAttr(wrapper, 'component-app');
+  expect(appComponent.length).toBe(1);
+});
+
+test('renders increment button', () => {
+  const wrapper = setup();
+  const button = findByTestAttr(wrapper, 'increment-button');
+  expect(button.length).toBe(1);
+});
+
+test('renders decrement button', () => {
+  const wrapper = setup();
+  const button = findByTestAttr(wrapper, 'decrement-button');
+  expect(button.length).toBe(1);
+})
+
+test('renders counter display', () => {
+  const wrapper = setup();
+  const counterDisplay = findByTestAttr(wrapper, 'counter-display');
+  expect(counterDisplay.length).toBe(1);
+});
+
+test('counter starts at 0', () => {
+  const wrapper = setup();
+  const initialCounterState = wrapper.state('counter');
+  expect(initialCounterState).toBe(0);
+});
+
+test('clicking button increments counter display', () => {
+  const counter = 7;
+  const wrapper = setup(null, { counter });
+
+  const button = findByTestAttr(wrapper, 'increment-button');
+  button.simulate('click');
+
+  const displayCounter = findByTestAttr(wrapper, 'counter-display');
+  expect(displayCounter.text()).toContain(counter + 1);
+});
+
+test('clicking "button decrement" decrement counter display', () => {
+  const counter = 7;
+  const wrapper = setup(null, { counter });
+
+  const button = findByTestAttr(wrapper, 'decrement-button');
+  button.simulate('click');
+
+  const displayCounter = findByTestAttr(wrapper, 'counter-display');
+  expect(displayCounter.text()).toContain(counter - 1);
+})
+
+test('clicking decrement when counter is equal 0', () => {
+  const counter = 0;
+  const error = false;
+  const wrapper = setup(null, { counter, error })
+
+  expect(wrapper.state().error).toBe(false);
+
+  const button = findByTestAttr(wrapper, 'decrement-button');
+  button.simulate('click');
+
+  const displayError = findByTestAttr(wrapper, 'error-display');
+  expect(displayError.text()).toContain('Counter can not be less than 0');
+
+  expect(wrapper.state().counter).toBe(0);
+  expect(wrapper.state().error).toBe(true);
+});
+
+test('clicking increment when counter is equal 0', () => {
+  const counter = 0;
+  const error = true;
+  const wrapper = setup(null, { counter, error });
+
+  expect(wrapper.state().error).toBe(true);
+
+  const displayError = findByTestAttr(wrapper, 'error-display');
+  expect(displayError.text()).toContain('Counter can not be less than 0');
+
+  const button = findByTestAttr(wrapper, 'increment-button')
+  button.simulate('click');
+
+  expect(wrapper.state().error).toBe(false);
+})
+
+// ===================================================================================================
+
+import React, { Component } from 'react';
+import './App.css';
+
+class App extends Component {
+  state = {
+    counter: 0,
+    error: false,
+  }
+
+  handleIncrement = () => {
+    if (this.state.error) {
+      this.setState({
+        error: false,
+      })
+    }
+
+    this.setState(prevState => ({
+      counter: prevState.counter + 1,
+    }))
+  }
+
+  handleDecrement = () => {
+    if (this.state.counter === 0) {
+      this.setState({
+        error: true,
+      })
+    } else {
+      this.setState(prevState => ({
+        counter: prevState.counter - 1,
+      }))
+    }
+  }
+
+  render() {
+    const { counter, error } = this.state;
+
+    return (
+      <div data-test="component-app">
+
+        <h1 data-test="counter-display">The counter is currently: {counter}</h1>
+        {error && <h2 data-test="error-display">Counter can not be less than 0</h2>}
+
+        <button
+          data-test="increment-button"
+          onClick={this.handleIncrement}
+        >Increment</button>
+
+        <button
+          data-test="decrement-button"
+          onClick={this.handleDecrement}
+        >Decrement</button>
+
+      </div>
+    );
+  }
+}
+
+export default App;
+
+
+NOTE SELF =============================================================================================================
+NOTE SELF =============================================================================================================
+NOTE SELF =============================================================================================================
+
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
+
+class Note extends Component {
+
+  render() {
+    return (
+      <div className="note">
+        <p>{this.props.note.text}</p>
+      </div>
+    );
+  }
+}
+
+Note.propTypes = {
+  note: PropTypes.object.isRequired,
+}
+
+export default Note;
+=======================================================================
+import React from 'react';
+import Note from './Note';
+import Enzyme, { mount } from 'enzyme';
+import Adapter from 'enzyme-adapter-react-16';
+
+Enzyme.configure({ adapter: new Adapter() });
+const props = { note: { text: 'test note' } }
+
+describe('Note.test.js', () => {
+  // let note = mount(<Note note={props.note} />);
+  let note = mount(<Note {...props} />);
+
+  it('renders note wrapper', () => {
+    const noteWrapper = note.find('.note');
+    expect(noteWrapper.length).toBe(1);
+  })
+
+  it('renders the not text', () => {
+    const paragraph = note.find('p');
+    expect(paragraph.text()).toEqual(props.note.text);
+  });
+
+});
+
+=======================================================================
+import React, { Component } from 'react';
+import { Form, FormControl, Button } from 'react-bootstrap';
+import Note from './Note';
+import { bake_cookie, read_cookie, delete_cookie } from 'sfcookies';
+
+const cookie_key = 'NOTES';
+
+class App extends Component {
+  constructor() {
+    super();
+    this.state = {
+      text: '',
+      notes: [],
+    }
+  }
+
+  submit() {
+    const { notes, text } = this.state;
+    notes.push({ text });
+
+    this.setState({
+      notes,
+      text: '',
+    })
+
+    bake_cookie(cookie_key, this.state.notes);
+  }
+
+  componentDidMount() {
+    this.setState({
+      notes: read_cookie(cookie_key)
+    })
+  }
+
+  clear() {
+    delete_cookie(cookie_key);
+    this.setState({ notes: [] });
+  }
+
+  render() {
+    return (
+      <div>
+        <h2>Note to Self</h2>
+        <Form inline={true}>
+          <FormControl
+            value={this.state.text}
+            onChange={(e) => { this.setState({ text: e.target.value }) }}
+          />
+          {'  '}
+          <Button
+            onClick={() => this.submit()}
+          >Submit</Button>
+        </Form>
+
+        {this.state.notes.map((note, index) => {
+          return (
+            <Note key={index} note={note} />
+          );
+        })}
+
+        <hr />
+        <Button
+          onClick={() => this.clear()}
+        >Clear Notes</Button>
+      </div>
+    );
+  }
+}
+
+export default App;
+
+=======================================================================
+
+import React from 'react';
+import App from './App';
+import Enzyme, { mount } from 'enzyme';
+import Adapter from 'enzyme-adapter-react-16';
+
+Enzyme.configure({ adapter: new Adapter() });
+
+describe('App.test.js', () => {
+  let app = mount(<App />);
+
+  it('renders the App title', () => {
+    expect(app.find('h2').text()).toEqual('Note to Self');
+  });
+
+  it('renders the clear button', () => {
+    expect(app.find('.btn').at(1).text()).toEqual('Clear Notes');
+  });
+
+  describe('when rendering the form', () => {
+
+    it('creates a Form component', () => {
+      expect(app.find('Form').exists()).toBe(true);
+    });
+
+    it('renders a FormControl component', () => {
+      expect(app.find('FormControl').exists()).toBe(true);
+    })
+
+    it('renders a submit button', () => {
+      expect(app.find('.btn').at(0).text()).toEqual('Submit');
+    });
+
+  });
+
+  describe('when creating a note', () => {
+    let testNote = 'test note';
+
+    beforeEach(() => {
+      app.find('FormControl').simulate('change', {
+        target: { value: testNote }
+      });
+    });
+
+    it('updates the text in state', () => {
+      expect(app.state().text).toEqual(testNote);
+    });
+
+    describe('and submitting the new note', () => {
+      beforeEach(() => {
+        app.find('.btn').at(0).simulate('click');
+      });
+
+      afterEach(() => {
+        app.find('.btn').at(1).simulate('click');
+      });
+
+      it('adds the new note to state', () => {
+        expect(app.state().notes[0].text).toEqual(testNote);
+      });
+
+      describe('and remounting the component', () => {
+        let app2;
+
+        beforeEach(() => {
+          app2 = mount(<App />);
+        });
+
+        it('reades, the stored note cookies', () => {
+          expect(app2.state().notes).toEqual([{ text: testNote }]);
+        })
+      });
+
+      describe('and clicking the clear button', () => {
+        beforeEach(() => {
+          app.find('.btn').at(1).simulate('click');
+        });
+
+        it('clears the notes in state', () => {
+          expect(app.state().notes).toEqual([]);
+        });
+      })
+    });
+
+  })
+
+})

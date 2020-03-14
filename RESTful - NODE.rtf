@@ -1,0 +1,487 @@
+RESTfull Routes
+================
+NAME		PATH	HTTP VERB		MONGOOSE METHOD			DESCRIPTION
+===================================================================================================================
+index 		GET 	/blogs			Blog.find()			List of all blogs
+new		GET	/blogs/new		N/A				Show new blog form			
+create		POST	/blogs			Blog.create()			Create new blog then redirect to somewhere
+-------------------------------------------------------------------------------------------------------------------
+show		GET	/blogs/:id		Blog.findById()			Show info about one specific blog
+-------------------------------------------------------------------------------------------------------------------
+edit		GET	/blogs/:id/edit		Blog.findById()			Show edit form for one blog
+update		PUT	/blogs/:id		Blog.findByIdAndUpdate()	Update a particular blog, then redirect somewhere
+-------------------------------------------------------------------------------------------------------------------
+delete		DELETE	/blogs/:id		Blog.findByIdAndRemove()	Delete a particular blog, then redirect somewhere
+
+
+Nested Routes
+=============
+NAME		PATH	HTTP VERB			MONGOOSE METHOD			DESCRIPTION
+===================================================================================================================
+new		GET	/blogs/:id/comments/new		N/A				Show new blog form			
+create		POST	/blogs/:id/comments		Blog.create()			Create new blog then redirect to somewhere
+da
+
+
+Proglems with PUT and DELETE.
+===============================
+Html form support only GET and POST Request. So we can not use method="PUT" or method="DELETE" at form.
+<form class="ui form" action="/blogs/<%= blog._id %>" method="PUT">
+<form class="ui form" action="/blogs/<%= blog._id %>" method="DELETE">
+
+<form class="ui form" action="/blogs/<%= blog._id %>?_method=PUT" method="POST">
+	<input class="ui button green" type="submit" value="Submit">	
+</form>
+<form action="/blogs/<%= blog._id %>?_method=DELETE" method="POST">
+        <button class="ui button red">Delete</button>
+</form>
+
+We have to use instead method="POST" and add to action="...?_method=PUT" at the end ?_method=PUT
+<form class="ui form" action="/blogs/<%= blog._id %>?_method=PUT" method="POST">
+
+and use Method-Override package
+npm install method-override --save
+const methodOverride = require('method-override');
+app.use(methodOverride("_method"));
+
+and now we can write route to update current object
+app.put('/blogs/:id', (req, res) => {
+  Blog.findByIdAndUpdate(req.params.id, req.body.blog, (err, updatedBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.redirect('/blogs/' + req.params.id);
+    }
+  })
+});
+
+same situation is with DELETE request, we just need to change PUT request to DELETE and rest of
+a pattern is exactly the same.
+
+CRUD methods====================================================================================
+
+// RESTFUL ROUTES
+// INDEX ROUTE
+app.get('/', (req, res) => {
+  res.redirect('/blogs');
+});
+
+app.get('/blogs', (req, res) => {
+  Blog.find({}, (err, blogs) => {
+    if (err) {
+      console.log(err)
+    } else {
+      res.render('index', {
+        blogs: blogs
+      });
+    }
+  });
+});
+
+// NEW ROUTE
+app.get('/blogs/new', (req, res) => {
+  res.render('new');
+})
+
+// CREATE ROUTE
+app.post('/blogs', (req, res) => {
+  Blog.create(req.body.blog, (err, blog) => {
+    if (err) {
+      res.render('new');
+    } else {
+      res.redirect('/blogs');
+    }
+  });
+});
+
+// SHOW ROUTE
+app.get('/blogs/:id', (req, res) => {
+  Blog.findById(req.params.id, (err, foundBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.render('show', {
+        blog: foundBlog
+      })
+    }
+  });
+});
+
+// EDIT ROUTE
+app.get('/blogs/:id/edit', (req, res) => {
+  Blog.findById(req.params.id, (err, foundBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.render('edit', {
+        blog: foundBlog
+      });
+    }
+  });
+})
+
+// UPDATE ROUTE
+app.put('/blogs/:id', (req, res) => {
+  Blog.findByIdAndUpdate(req.params.id, req.body.blog, (err, updatedBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.redirect('/blogs/' + req.params.id);
+    }
+  })
+});
+
+// DELETE ROUTE
+app.delete('/blogs/:id', (req, res) => {
+  Blog.findByIdAndRemove(req.params.id, (err, removedElement) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.redirect('/blogs');
+    }
+  })
+});
+
+===================================================================================================================
+SANITIZER
+=========
+npm install express-sanitizer
+const expressSanitizer = require('express-sanitizer');
+
+app.use has to be declare after body-parser as below
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+app.use(expressSanitizer());
+
+and we use it in routes where we want to add new data
+like for example create or update
+
+req.body.blog.body = req.sanitiaze(req.body.blog.body);
+
+
+EXPRESS
+=======
+npm install express
+const express = require('express');
+
+
+EJS
+===
+npm install ejs
+app.set('view engine', 'ejs');
+
+folders:
+views
+views->partials
+
+
+CSS
+===
+app.use(express.static('public'));
+<link rel="stylesheet" href="/stylesheets/app.css">
+
+app.use(express.static('public/css'));
+or we can use with __dirname, it is safer
+app.use(express.static(__dirname + '/public/css'));
+
+<link rel="stylesheet" href="/app.css">
+
+
+BODYPARSER
+==========
+npm install body-parser
+const bodyParser = require('body-parser');
+app.use(bodyParser.urlencoded({extended: true}))
+access=> req.body
+
+
+===================================================================
+MONGOOSE
+===================================================================
+npm install mongoose
+const mongoose = require('mongoose')
+mongoose.connect('mongodb://localhost/restful_blog_app_02', {
+  useUnifiedTopology: true,
+  useNewUrlParser: true
+});
+
+const blogSchema = new mongoose.Schema({
+  title: String,
+  image: {type: String, default: 'placeholder.jpg'},
+  body: String,
+  created: {type: Date, default: Date.now}
+});
+const Blog = mongoose.model('Blog', blogSchema);
+
+------------ create ------------
+Blog.create({
+  title: 'Test Blog',
+  image: 'https://cdn.pixabay.com/photo/2016/11/14/04/45/elephant-1822636__340.jpg',
+  body: 'Hello, this is a blog post'
+}, (err, blog) => {
+  if(err) {
+    console.log(err)
+  } else {
+    console.log(blog)
+  }
+})
+
+Blog.create(req.body.blog, (err, blog) => {
+    if (err) {
+      res.render('new');
+    } else {
+      res.redirect('/blogs');
+    }
+  })
+
+------------ find ------------
+Blog.find({}, (err, foundBlog) => {
+    if (err) {
+      console.log(err)
+    } else {
+      res.render('index', {
+        blogs: foundBlog
+      });
+    }
+  })
+
+------------ find by id ------------
+Blog.findById(req.params.id, (err, foundBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.render('show', {
+        blog: foundBlog
+      })
+    }
+  });
+
+------------ find by id and update ------------
+app.put('/blogs/:id', (req, res) => {
+  Blog.findByIdAndUpdate(req.params.id, req.body.blog, (err, updatedBlog) => {
+    if (err) {
+      res.redirect('/blogs');
+    } else {
+      res.redirect('/blogs/' + req.params.id);
+    }
+  })
+});
+
+MONGOOSE - ASSOCIATIONS
+=========================
+######################### Embedding Data
+------------ not embeded data ------------
+// POST - title, content
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+});
+const Post = mongoose.model('Post', postSchema);
+
+// USER - email, name
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+});
+const User = mongoose.model('User', userSchema);
+
+------------ create ------------
+const newUser = new User({
+  email: 'charlie@brown.edu',
+  name: 'Charlie Brown'
+});
+newUser.save((err, user) => {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log(user);
+  }
+});
+
+------------ embeded data ------------
+// POST - title, content
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+});
+const Post = mongoose.model('Post', postSchema);
+
+// USER - email, name
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  posts: [postSchema]
+});
+const User = mongoose.model('User', userSchema);
+
+------------ create ------------
+const newUser = new User({
+  name: 'Hermione Granger',
+  email: 'hermione@hogwarts.edu',
+});
+
+newUser.posts.push({
+  title: 'Hot to bre polyjuice potion',
+  content: 'Just kidding. Go to potions class to learn it!',
+})
+
+newUser.save((err, user) => {
+  if (err)
+    console.log(err);
+  else
+    console.log(user);
+})
+
+------------ retrive data ------------
+User.findOne({
+  name: 'Hermione Granger'
+}, (err, user) => {
+  if (err)
+    console.log(err);
+  else
+    console.log(user);
+})
+
+------------ add new post to current user - "Callback Hell" ------------
+User.findOne({
+  name: 'Hermione Granger'
+}, (err, user) => {
+  if (err) {
+    console.log(err);
+  } else {
+    user.posts.push({
+      title: '3 Things I really hate',
+      content: 'Voldemort. Voldemort. Voldemort'
+    });
+    user.save((err, newUser) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(newUser);
+      }
+    })
+  }
+})
+
+######################### Referencing Data
+//POST = title, content
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+});
+const Post = mongoose.model('Post', postSchema);
+
+//USER - email, name
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  posts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post'
+  }],
+});
+const User = mongoose.model('User', userSchema);
+
+------------ create user------------
+User.create({
+  email: "bob@gmail.com",
+  name: 'Bob Belcher'
+}, (err, user) => {
+  if (err)
+    console.log(err);
+  else
+    console.log(user);
+});
+
+------------ create post------------
+Post.create({
+  title: 'Some other post',
+  content: 'blaj sdkf l sgdk fslk jfslk dflkd'
+}, (err, post) => {
+  if (err) {
+    console.log(err)
+  } else {
+    console.log(post);
+  }
+})
+
+------------ add post to created User ------------
+Post.create({
+  title: "How to cook the best burger pt.2",
+  content: 'blah blah blah blah blah'
+}, (err, post) => {
+  if (err)
+    console.log(err);
+  else {
+    User.findOne({
+      email: 'bob@gmail.com'
+    }, (err, foundUser) => {
+      if (err) {
+        console.log(err)
+      } else {
+        foundUser.posts.push(post);
+        foundUser.save((err, data) => {
+          if (err) {
+            console.log(err)
+          } else {
+            console.log(data);
+          }
+        })
+      }
+    })
+  }
+});
+
+------------ find user and all hist posts ------------
+User.findOne({
+  email: 'bob@gmail.com'
+}).populate('posts').exec((err, user) => {
+  if (err) {
+    console.log(err)
+  } else {
+    console.log(user);
+  }
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

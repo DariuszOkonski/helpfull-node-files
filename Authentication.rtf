@@ -1,0 +1,299 @@
+AUTHENTICATION ====================================================================================
+-Passport -Passport Local - Passport Local Mongoose
+
+npm install passport --save
+npm install passport-local --save
+npm install passport-local-mongoose express-session --save
+
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const passportLocalMongoose = require('passport-local-mongoose');
+
+mongoose.connect('mongodb://localhost/auth_demo_app_01', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useCreateIndex: true,
+});
+
+we have to create our mongodb schema and add passportLocalMongose to it
+for example: 
+
+========================================
+const mongoose = require('mongoose');
+const passportLocalMongoose = require('passport-local-mongoose');
+
+const UserSchema = new mongoose.Schema({
+  userName: String,
+  password: String,
+});
+//add method serialzeUser and deserializerUser
+UserSchema.plugin(passportLocalMongoose);
+
+module.exports = mongoose.model('User', UserSchema);
+========================================
+
+
+then in file app.js
+
+app.use(require('express-session')({
+  secret: 'Rusty is the best and cutest dog in the world',
+  resave: false,
+  saveUninitialized: false,
+}));
+
+app.set('view engine', 'ejs');
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+method below responsible for reading the session, taking data from session with are encoded,
+decoded them and uncoded again.
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+
+=============================================
+routes form Signing Up => SIGN UP A NEW USER
+=============================================
+//Auth routes 
+//show sign up form
+app.get('/register', (req, res) => {
+  res.render('register');
+});
+
+app.post('/register', (req, res) => {
+  User.register(new User({
+    username: req.body.username
+  }), req.body.password, (err, user) => {
+    if (err) {
+      console.log(err);
+      res.render('register');
+    }
+    //logging in user
+    passport.authenticate('local')(req, res, () => {
+      res.redirect('/secret');
+    })
+  });
+});
+
+and register.ejs
+=================
+<h1>Sign Up Form</h1>
+
+<form action="/register" method="POST">
+  <input type="text" name="username" placeholder="username">
+  <br>
+  <input type="text" name="password" placeholder="password">
+  <br>
+  <button>Submit</button>
+</form>
+
+===========================================================
+routes form Logging IN after user is already at db => LOGIN
+===========================================================
+
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+// Login routes
+//render login form
+app.get('/login', (req, res) => {
+  res.render('login');
+});
+
+//middleware => passport.authenticate...
+app.post('/login', passport.authenticate('local', {
+  successRedirect: '/secret',
+  failureRedirect: '/login'
+}), (req, res) => {
+
+});
+
+and login.ejs
+=============
+<h1>Login</h1>
+
+<form action="/login" method="POST">
+  <input type="text" name="username" placeholder="username">
+  <br>
+  <input type="text" name="password" placeholder="password">
+  <br>
+  <button>Submit</button>
+</form>
+
+at this point you can still get to /secret by typing it do domain
+
+=================================================================
+routes form Logging OUT after user is already logged in => LOGOUT
+=================================================================
+
+//LOGOUT
+app.get('/logout', (req, res) => {
+  req.logout();
+  res.redirect('/');
+})
+
+//check if login or not
+we have to write a middleware to check if user is logged or not, this
+will unable get to /secret by typing it at domain
+
+cannot be arrow function (hoisting)
+function isLoggedIn(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/login');
+}
+
+and we have to add this function as a middleware to our app.get('/secret') and
+to all pages witch we want hide if user is not log in
+
+app.get('/secret', isLoggedIn, (req, res) => {
+  res.render('secret');
+})
+
+WHOLE APP.JS FILE BELOW
+const express = require('express');
+const mongoose = require('mongoose');
+
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const passportLocalMongoose = require('passport-local-mongoose');
+const bodyParser = require('body-parser');
+
+const User = require('./models/user');
+const app = express();
+
+
+mongoose.connect('mongodb://localhost/auth_demo_app_01', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useCreateIndex: true,
+});
+
+app.use(require('express-session')({
+  secret: 'Rusty is the best and cutest dog in the world',
+  resave: false,
+  saveUninitialized: false,
+}));
+
+app.set('view engine', 'ejs');
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+
+//routes ================================================
+app.get('/', (req, res) => {
+  res.render('home');
+});
+
+app.get('/secret', isLoggedIn, (req, res) => {
+  res.render('secret');
+})
+
+//Auth routes ==========================================
+//show sign up form - SIGN UP
+app.get('/register', (req, res) => {
+  res.render('register');
+});
+
+app.post('/register', (req, res) => {
+  User.register(new User({
+    username: req.body.username
+  }), req.body.password, (err, user) => {
+    if (err) {
+      console.log(err);
+      res.render('register');
+    }
+    //logging in user
+    passport.authenticate('local')(req, res, () => {
+      res.redirect('/secret');
+    })
+  });
+})
+// Login routes - LOG IN
+//render login form
+app.get('/login', (req, res) => {
+  res.render('login');
+});
+
+//middleware => passport.authenticate...
+app.post('/login', passport.authenticate('local', {
+  successRedirect: '/secret',
+  failureRedirect: '/login'
+}), (req, res) => {
+
+});
+
+//LOGOUT
+app.get('/logout', (req, res) => {
+  req.logout();
+  res.redirect('/');
+})
+
+function isLoggedIn(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/login');
+}
+
+
+//========================================================
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is listening at port ${port}...`);
+})
+
+
+
+=================================================================
+Exmple of logging with user
+=================================================================
+header.ejs
+
+<ul class="navbar-nav">
+
+          <% if(!currentUser) { %>
+          <li class="nav-item active">
+            <a class="nav-link" href="/login">Login</span></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/register">Sign Up</a>
+          </li>
+          <% } else {  %>
+          <li class="nav-item">
+            You are logged in as: <%= currentUser.username %>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout</a>
+          </li>
+          <%} %>
+
+
+
+        </ul>
+
+and now to send this information to every route we have to write middleware
+
+app.use(function (req, res, next) {
+  res.locals.currentUser = req.user;
+  next();
+})
+
+
+
+
+

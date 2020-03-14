@@ -1,0 +1,115 @@
+create folder routes/comments.js
+
+const express = require('express');
+const router = express.Router({
+  mergeParams: true
+});
+const Campground = require('../models/campgrounds');
+const Comment = require('../models/comment');
+
+// comments new
+router.get('/new', isLoggedIn, (req, res) => {
+  Campground.findById(req.params.id, (err, campground) => {
+    if (err) {
+      console.log(err)
+    } else {
+      res.render('comments/new', {
+        campground
+      });
+    }
+  });
+});
+
+// comments create
+router.post('/', isLoggedIn, (req, res) => {
+  Campground.findById(req.params.id, (err, campground) => {
+    if (err) {
+      redirect('/compgrounds');
+    } else {
+      Comment.create(req.body.comment, (err, comment) => {
+        if (err) {
+          console.log(err)
+        } else {
+          campground.comments.push(comment);
+          campground.save((err, data) => {
+            if (err) {
+              res.redirect('/campgrounds')
+            } else {
+              res.redirect('/campgrounds/' + req.params.id);
+            }
+          })
+        }
+      })
+    }
+  })
+
+});
+
+// middleware
+function isLoggedIn(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/login');
+}
+
+module.exports = router;
+
+====================================================================================
+at file app.js
+
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const Campground = require('./models/campgrounds');
+const Comment = require('./models/comment');
+const seedDB = require('./seeds');
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const User = require('./models/user');
+
+const commentRoutes = require('./routes/comments');
+const campgroundRoutes = require('./routes/campgrounds');
+const indexRoutes = require('./routes/index');
+
+
+mongoose.connect('mongodb://localhost/yelp_camp', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+// seedDB();
+app.set('view engine', 'ejs');
+app.use(express.static(__dirname + '/public/css'));
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+
+// PASSPORT CONFIGURATION =====================================
+app.use(require('express-session')({
+  secret: 'Once again Rusty wins cutest dog!',
+  resave: false,
+  saveUninitialized: false,
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new LocalStrategy(User.authenticate()));
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+app.use(function (req, res, next) {
+  res.locals.currentUser = req.user;
+  next();
+});
+
+app.use(indexRoutes);
+app.use('/campgrounds', campgroundRoutes);
+app.use('/campgrounds/:id/comments', commentRoutes);
+
+
+//======================================
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is listening at port ${port}...`);
+});
